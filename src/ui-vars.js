@@ -87,6 +87,10 @@ export async function renderVarsTab(body, nav) {
             <div class="ps-vars-form" style="display:none"></div>
             <div class="ps-vars-nochat"></div>
             <div class="ps-vars-list"></div>
+            <details class="ps-cheatsheet ps-vars-help">
+                <summary data-ps-i18n="vars_help_title"></summary>
+                <div class="ps-cs-body" data-ps-i18n="vars_help_body"></div>
+            </details>
         </div>
     `;
     localize(body);
@@ -157,27 +161,86 @@ export async function renderVarsTab(body, nav) {
         });
 
         if (expandedKey === key) {
+            const scopeApi = row.scope === 'global' ? 'global' : 'local';
             const editor = document.createElement('div');
             editor.className = 'ps-var-editor';
-            const chips = FORMS
-                .map(form => buildVarMacro(form, row.scope, row.name))
-                .filter(Boolean)
-                .map(macro => `<code class="ps-var-chip" title="${escapeHtml(t('vars_chips_hint'))}">${escapeHtml(macro)}</code>`)
-                .join('');
+            const formRows = FORMS.map(form => {
+                const macro = buildVarMacro(form, row.scope, row.name);
+                if (!macro) return ''; // shorthand form with an incompatible name
+                return `
+                    <div class="ps-var-form-row" data-macro="${escapeHtml(macro)}" title="${escapeHtml(t(`vars_fd_${form}`))}">
+                        <span class="ps-var-form-label" data-ps-i18n="vars_f_${form}"></span>
+                        <code class="ps-var-form-macro">${escapeHtml(macro)}</code>
+                        <div class="menu_button ps-btn ps-var-form-insert" data-ps-i18n="[title]vars_insert_macro"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
+                        <div class="menu_button ps-btn ps-var-form-copy" data-ps-i18n="[title]copy"><i class="fa-solid fa-copy"></i></div>
+                    </div>`;
+            }).join('');
             editor.innerHTML = `
                 <textarea class="text_pole ps-var-value ps-mono" rows="2"></textarea>
-                <div class="ps-var-chips">${chips}</div>
+                <div class="ps-var-quick">
+                    <div class="menu_button ps-btn ps-var-dec" data-ps-i18n="[title]vars_dec_title"><i class="fa-solid fa-minus"></i> 1</div>
+                    <div class="menu_button ps-btn ps-var-inc" data-ps-i18n="[title]vars_inc_title"><i class="fa-solid fa-plus"></i> 1</div>
+                    <div class="menu_button ps-btn ps-var-rename"><i class="fa-solid fa-i-cursor"></i> <span data-ps-i18n="vars_rename"></span></div>
+                </div>
+                <div class="ps-var-forms-title" data-ps-i18n="vars_forms_title"></div>
+                <div class="ps-var-forms">${formRows}</div>
             `;
+            localize(editor);
             const valueEl = editor.querySelector('.ps-var-value');
             valueEl.value = valueText(row.value);
-            const saveValue = debounce(() => {
-                setVariable(row.scope === 'global' ? 'global' : 'local', row.name, valueEl.value);
+            const setPreview = (text) => {
                 const preview = el.querySelector('.ps-var-preview');
-                if (preview) preview.textContent = valueEl.value;
+                if (preview) preview.textContent = text;
+            };
+            const saveValue = debounce(() => {
+                setVariable(scopeApi, row.name, valueEl.value);
+                setPreview(valueEl.value);
             }, 400);
             valueEl.addEventListener('input', saveValue);
-            for (const chip of editor.querySelectorAll('.ps-var-chip')) {
-                chip.addEventListener('click', () => copyText(chip.textContent));
+
+            const bump = (delta) => {
+                const current = valueEl.value.trim();
+                const num = current === '' ? 0 : Number(current);
+                if (!Number.isFinite(num)) {
+                    toast()?.warning(t('vars_not_number'));
+                    return;
+                }
+                const next = String(num + delta);
+                valueEl.value = next;
+                setVariable(scopeApi, row.name, next);
+                setPreview(next);
+            };
+            editor.querySelector('.ps-var-inc').addEventListener('click', () => bump(1));
+            editor.querySelector('.ps-var-dec').addEventListener('click', () => bump(-1));
+
+            editor.querySelector('.ps-var-rename').addEventListener('click', async () => {
+                const input = await callGenericPopup(t('vars_rename_prompt', { name: row.name }), POPUP_TYPE.INPUT ?? 3, row.name);
+                const newName = typeof input === 'string' ? input.trim() : '';
+                if (!newName || newName === row.name) return;
+                if (!isValidName(newName)) {
+                    toast()?.warning(t('vars_name_required'));
+                    return;
+                }
+                const vars = getVariables();
+                const bucket = row.scope === 'global' ? vars.global : vars.local;
+                if (Object.hasOwn(bucket, newName)) {
+                    toast()?.warning(t('vars_exists'));
+                    return;
+                }
+                if (!setVariable(scopeApi, newName, valueEl.value)) {
+                    toast()?.error(t('toast_error'));
+                    return;
+                }
+                deleteVariable(scopeApi, row.name);
+                expandedKey = `${row.scope}:${newName}`;
+                toast()?.success(t('vars_renamed'));
+                renderList();
+            });
+
+            for (const formRow of editor.querySelectorAll('.ps-var-form-row')) {
+                const macro = formRow.dataset.macro;
+                formRow.querySelector('.ps-var-form-insert').addEventListener('click', () => insertText(macro));
+                formRow.querySelector('.ps-var-form-copy').addEventListener('click', () => copyText(macro));
             }
             el.appendChild(editor);
         }
@@ -235,6 +298,12 @@ export async function renderVarsTab(body, nav) {
             }
             toast()?.success(t('vars_created'));
             toggleForm(false);
+            // Reset filters so the new variable is visible, and open its editor.
+            scopeFilter = 'all';
+            scopeEl.value = 'all';
+            searchValue = '';
+            searchEl.value = '';
+            expandedKey = `${scope === 'global' ? 'global' : 'chat'}:${name}`;
             renderList();
         };
         formHost.querySelector('.ps-vars-form-create').addEventListener('click', create);

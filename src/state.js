@@ -19,6 +19,7 @@ export const DEFAULTS = {
         autoSnapshot: true,
     },
     confirmRestore: true,
+    hiddenMacros: [],         // macro names hidden from the Macros reference tab
     snapshots: {},            // { [presetName]: { [identifier]: [ entry ] } }
     snapshotCaps: { perPrompt: 20, totalEntries: 300, maxContentChars: 20000 },
     blocks: [],               // [ { id, name, content, createdTs } ]
@@ -193,6 +194,7 @@ export function buildExportPayload() {
         snapshots: s.snapshots,
         blocks: s.blocks,
         snapshotCaps: s.snapshotCaps,
+        hiddenMacros: s.hiddenMacros,
         _seq: s._seq,
     };
 }
@@ -234,6 +236,7 @@ export function applyImportPayload(data) {
     const s = getSettings();
     s.snapshots = snapshots;
     s.blocks = blocks;
+    if (Array.isArray(data.hiddenMacros)) s.hiddenMacros = data.hiddenMacros.map(String);
     if (data.snapshotCaps && typeof data.snapshotCaps === 'object') {
         for (const k of Object.keys(DEFAULTS.snapshotCaps)) {
             if (typeof data.snapshotCaps[k] === 'number') s.snapshotCaps[k] = data.snapshotCaps[k];

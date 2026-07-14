@@ -5,8 +5,12 @@
 import { t, localize, getLang } from './i18n.js';
 import { LOG, escapeHtml, insertAtCursor } from './util.js';
 import { getAllMacros, getVariables } from './st-bridge.js';
+import { getSettings, save } from './state.js';
 
 const toast = () => globalThis.toastr;
+
+let showHidden = false;   // "show hidden macros" toggle, kept for the session
+let hintShown = false;    // the "how to unhide" toast is shown once per session
 
 const CATEGORY_ORDER = ['names', 'character', 'chat', 'variable', 'time', 'random', 'utility', 'prompts', 'state', 'misc', 'uncategorized'];
 
@@ -53,7 +57,13 @@ function categoryTitle(category) {
 export async function renderReferenceTab(body, nav) {
     body.innerHTML = `
         <div class="ps-ref">
-            <input type="search" class="text_pole ps-ref-search" data-ps-i18n="[placeholder]ref_search_placeholder">
+            <div class="ps-ref-toolbar">
+                <input type="search" class="text_pole ps-ref-search" data-ps-i18n="[placeholder]ref_search_placeholder">
+                <label class="checkbox_label ps-ref-showhidden">
+                    <input type="checkbox" class="ps-ref-showhidden-cb">
+                    <span class="ps-ref-showhidden-label"></span>
+                </label>
+            </div>
             <div class="ps-ref-notice"></div>
             <div class="ps-ref-list"></div>
             <div class="ps-ref-vars"></div>
@@ -62,6 +72,43 @@ export async function renderReferenceTab(body, nav) {
     localize(body);
     const list = body.querySelector('.ps-ref-list');
     const search = body.querySelector('.ps-ref-search');
+    const hiddenToggle = body.querySelector('.ps-ref-showhidden');
+    const hiddenCb = body.querySelector('.ps-ref-showhidden-cb');
+    const hiddenLabel = body.querySelector('.ps-ref-showhidden-label');
+
+    const hiddenList = () => getSettings().hiddenMacros;
+    const isHidden = (name) => hiddenList().includes(String(name));
+    const syncHiddenToggle = () => {
+        const n = hiddenList().length;
+        hiddenLabel.textContent = t('ref_show_hidden', { n });
+        hiddenToggle.style.display = n ? '' : 'none';
+        if (!n) {
+            showHidden = false;
+            hiddenCb.checked = false;
+        }
+    };
+    const toggleHidden = (name) => {
+        const items = hiddenList();
+        const index = items.indexOf(String(name));
+        if (index === -1) {
+            items.push(String(name));
+            if (!hintShown) {
+                toast()?.info(t('ref_hidden_hint'));
+                hintShown = true;
+            }
+        } else {
+            items.splice(index, 1);
+        }
+        save();
+        syncHiddenToggle();
+        renderRows();
+    };
+    hiddenCb.checked = showHidden;
+    hiddenCb.addEventListener('change', () => {
+        showHidden = hiddenCb.checked;
+        renderRows();
+    });
+    syncHiddenToggle();
 
     let defs = [];
     let usingFallback = false;
@@ -97,9 +144,11 @@ export async function renderReferenceTab(body, nav) {
         if (usingFallback) {
             const isRu = getLang() === 'ru';
             for (const item of FALLBACK) {
+                const hiddenNow = isHidden(item.name);
+                if (hiddenNow && !showHidden) continue;
                 const desc = isRu ? item.desc.ru : item.desc.en;
                 if (query && !(item.name + ' ' + item.sig + ' ' + desc).toLowerCase().includes(query)) continue;
-                list.appendChild(fallbackRow(item.sig, desc, insertText));
+                list.appendChild(fallbackRow(item.sig, desc, insertText, { name: item.name, hiddenNow, toggle: toggleHidden }));
             }
             if (!list.children.length) {
                 list.innerHTML = `<div class="ps-empty" data-ps-i18n="ref_empty"></div>`;
@@ -110,6 +159,7 @@ export async function renderReferenceTab(body, nav) {
 
         const groups = new Map();
         for (const def of defs) {
+            if (isHidden(def.name) && !showHidden) continue;
             const haystack = [
                 def.name,
                 def.description,
@@ -136,7 +186,7 @@ export async function renderReferenceTab(body, nav) {
             head.textContent = categoryTitle(cat);
             list.appendChild(head);
             for (const def of groups.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name)))) {
-                list.appendChild(macroRow(def, insertText));
+                list.appendChild(macroRow(def, insertText, { name: def.name, hiddenNow: isHidden(def.name), toggle: toggleHidden }));
             }
         }
         if (!list.children.length) {
@@ -150,7 +200,19 @@ export async function renderReferenceTab(body, nav) {
     renderVariables(body.querySelector('.ps-ref-vars'), insertText);
 }
 
-function fallbackRow(signature, description, insertText) {
+function hideButtonHtml(hiddenNow) {
+    return `<div class="menu_button ps-btn ps-ref-hide" data-ps-i18n="[title]${hiddenNow ? 'ref_unhide' : 'ref_hide'}"><i class="fa-solid ${hiddenNow ? 'fa-eye' : 'fa-eye-slash'}"></i></div>`;
+}
+
+function wireHideButton(row, hideCtl) {
+    if (hideCtl.hiddenNow) row.classList.add('ps-ref-row-hidden');
+    row.querySelector('.ps-ref-hide').addEventListener('click', (event) => {
+        event.stopPropagation();
+        hideCtl.toggle(hideCtl.name);
+    });
+}
+
+function fallbackRow(signature, description, insertText, hideCtl) {
     const row = document.createElement('div');
     row.className = 'ps-ref-row';
     row.innerHTML = `
@@ -158,6 +220,7 @@ function fallbackRow(signature, description, insertText) {
             <code class="ps-ref-sig">${escapeHtml(signature)}</code>
             <span class="ps-ref-desc">${escapeHtml(description)}</span>
             <div class="menu_button ps-btn ps-ref-insert" data-ps-i18n="[title]insert"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
+            ${hideButtonHtml(hideCtl.hiddenNow)}
         </div>
     `;
     localize(row);
@@ -165,10 +228,11 @@ function fallbackRow(signature, description, insertText) {
         event.stopPropagation();
         insertText(signature);
     });
+    wireHideButton(row, hideCtl);
     return row;
 }
 
-function macroRow(def, insertText) {
+function macroRow(def, insertText, hideCtl) {
     const signature = buildSignature(def);
     const row = document.createElement('div');
     row.className = 'ps-ref-row';
@@ -177,6 +241,7 @@ function macroRow(def, insertText) {
             <code class="ps-ref-sig">${escapeHtml(signature)}</code>
             <span class="ps-ref-desc">${escapeHtml(def.description ?? '')}</span>
             <div class="menu_button ps-btn ps-ref-insert" data-ps-i18n="[title]insert"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
+            ${hideButtonHtml(hideCtl.hiddenNow)}
         </div>
         <div class="ps-ref-row-details" style="display:none"></div>
     `;
@@ -185,6 +250,7 @@ function macroRow(def, insertText) {
         event.stopPropagation();
         insertText(signature);
     });
+    wireHideButton(row, hideCtl);
     row.querySelector('.ps-ref-row-head').addEventListener('click', () => {
         const details = row.querySelector('.ps-ref-row-details');
         if (details.style.display !== 'none') {

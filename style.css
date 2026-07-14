@@ -740,8 +740,32 @@ dialog.popup.ps-dialog .popup-content {
     overflow-y: auto;
 }
 
-.ps-ref-search {
+.ps-ref-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
     flex: 0 0 auto;
+}
+
+.ps-ref-toolbar .ps-ref-search {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.ps-ref-showhidden {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.ps-ref-row-hidden {
+    opacity: 0.55;
+}
+
+.ps-ref-hide {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 2px 8px;
 }
 
 .ps-ref-cat {
@@ -1011,22 +1035,66 @@ dialog.popup.ps-dialog .popup-content {
     margin-top: 6px;
 }
 
-.ps-var-chips {
+.ps-var-quick {
     display: flex;
+    gap: 6px;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 4px;
 }
 
-.ps-var-chip {
+.ps-var-forms-title {
     font-size: 0.85em;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 4px;
-    padding: 2px 6px;
-    cursor: pointer;
+    opacity: 0.75;
+    margin-top: 2px;
 }
 
-.ps-var-chip:hover {
-    background-color: var(--SmartThemeBlurTintColor);
+.ps-var-forms {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ps-var-form-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 30px;
+    border-radius: 4px;
+    padding: 1px 4px;
+}
+
+.ps-var-form-row:hover {
+    background: var(--black30a, rgba(0, 0, 0, 0.2));
+}
+
+.ps-var-form-label {
+    flex: 0 0 auto;
+    width: min(170px, 38%);
+    font-size: 0.85em;
+    opacity: 0.85;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-var-form-macro {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-var-form-row .ps-btn {
+    flex: 0 0 auto;
+    min-height: 26px;
+    padding: 1px 8px;
+}
+
+.ps-vars-help {
+    flex: 0 0 auto;
 }
 
 /* Variable picker popup (from the prompt editor) */
@@ -1167,5 +1235,20 @@ dialog.popup.ps-dialog .popup-content {
 
     .ps-ref-desc {
         display: none;
+    }
+
+    .ps-var-form-row {
+        flex-wrap: wrap;
+    }
+
+    .ps-var-form-label {
+        width: 100%;
+    }
+
+    .ps-var-form-row .ps-btn,
+    .ps-ref-hide {
+        min-width: 40px;
+        min-height: 40px;
+        justify-content: center;
     }
 }
