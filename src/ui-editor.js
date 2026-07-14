@@ -14,6 +14,7 @@ import {
     countTokens,
 } from './st-bridge.js';
 import { renderInlinePreview } from './ui-preview.js';
+import { openVariablePicker } from './ui-vars.js';
 
 const toast = () => globalThis.toastr;
 
@@ -114,6 +115,7 @@ export function renderEditor(host, identifier, nav) {
             <div class="menu_button ps-btn ps-act-history"><i class="fa-solid fa-clock-rotate-left"></i> <span data-ps-i18n="btn_history_of_prompt"></span></div>
             <div class="menu_button ps-btn ps-act-block-sel"><i class="fa-solid fa-cubes"></i> <span data-ps-i18n="btn_block_from_selection"></span></div>
             <select class="text_pole ps-block-select"></select>
+            <div class="menu_button ps-btn ps-act-insert-var" data-ps-i18n="[title]ed_insert_var"><i class="fa-solid fa-square-root-variable"></i></div>
             <div class="ps-ed-actions-spacer"></div>
             <div class="menu_button ps-btn ps-act-detach" data-ps-i18n="[title]detach_action"><i class="fa-solid fa-chain-broken"></i></div>
             <div class="menu_button ps-btn ps-danger ps-act-delete" data-ps-i18n="[title]delete_action"><i class="fa-solid fa-trash"></i></div>
@@ -335,6 +337,8 @@ export function renderEditor(host, identifier, nav) {
         insertAtCursor(textarea, block.content);
         toast()?.success(t('block_inserted'));
     });
+
+    wrap.querySelector('.ps-act-insert-var').addEventListener('click', () => openVariablePicker(textarea));
 
     wrap.querySelector('.ps-act-detach').addEventListener('click', async () => {
         const ok = await callGenericPopup(t('confirm_detach_prompt'), POPUP_TYPE.CONFIRM ?? 2);

@@ -330,6 +330,52 @@ export function getVariables() {
     };
 }
 
+// ST's variables API persists itself (saveMetadataDebounced / saveSettingsDebounced),
+// so writes only need the selfWrite guard. The debounced save fires ~1s later,
+// hence the long guard release.
+export function canEditVariables() {
+    return typeof ctx()?.variables?.local?.set === 'function';
+}
+
+export function hasOpenChat() {
+    const context = ctx();
+    try {
+        return context?.getCurrentChatId?.() !== undefined;
+    } catch {
+        return false;
+    }
+}
+
+export function setVariable(scope, name, value) {
+    const api = ctx()?.variables?.[scope === 'global' ? 'global' : 'local'];
+    if (typeof api?.set !== 'function') return false;
+    selfWriteDepth++;
+    try {
+        api.set(String(name), String(value));
+        return true;
+    } catch (err) {
+        console.error(LOG, 'setVariable failed', err);
+        return false;
+    } finally {
+        setTimeout(() => { selfWriteDepth = Math.max(0, selfWriteDepth - 1); }, 2000);
+    }
+}
+
+export function deleteVariable(scope, name) {
+    const api = ctx()?.variables?.[scope === 'global' ? 'global' : 'local'];
+    if (typeof api?.del !== 'function') return false;
+    selfWriteDepth++;
+    try {
+        api.del(String(name));
+        return true;
+    } catch (err) {
+        console.error(LOG, 'deleteVariable failed', err);
+        return false;
+    } finally {
+        setTimeout(() => { selfWriteDepth = Math.max(0, selfWriteDepth - 1); }, 2000);
+    }
+}
+
 // --- Regex engine ---------------------------------------------------------------
 
 export function regexEnums() {

@@ -12,13 +12,14 @@ import { isSelfWrite, currentPresetName, updatePresetFile, caps } from './st-bri
 import { renderPromptsTab } from './ui-prompts.js';
 import { renderRegexTab } from './ui-regex.js';
 import { renderBlocksTab } from './ui-library.js';
+import { renderVarsTab } from './ui-vars.js';
 import { renderHistoryTab } from './ui-history.js';
 import { renderReferenceTab } from './ui-reference.js';
 import { renderDryRunView } from './ui-preview.js';
 
 const toast = () => globalThis.toastr;
 
-const TABS = ['prompts', 'regex', 'blocks', 'history', 'reference'];
+const TABS = ['prompts', 'regex', 'blocks', 'vars', 'history', 'reference'];
 
 let current = null; // { root, body, dlg, tab, params, cleanups, insertTarget }
 let dirtyToPreset = false;
@@ -103,6 +104,7 @@ async function showTab(tab, params = {}) {
     try {
         if (tab === 'regex') await renderRegexTab(body, nav);
         else if (tab === 'blocks') await renderBlocksTab(body, nav);
+        else if (tab === 'vars') await renderVarsTab(body, nav);
         else if (tab === 'history') await renderHistoryTab(body, nav, params);
         else if (tab === 'reference') await renderReferenceTab(body, nav, params);
         else if (tab === 'dryrun') await renderDryRunView(body, nav);

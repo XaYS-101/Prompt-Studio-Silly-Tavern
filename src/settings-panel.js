@@ -162,8 +162,6 @@ export function mountSettingsPanel() {
         save();
         localize(panel);
         updateStorageLine(panel);
-        const entryBar = document.getElementById('ps_pm_entry')?.parentElement;
-        if (entryBar) localize(entryBar);
     });
     panel.querySelector('#ps_open_studio').addEventListener('click', () => openStudio());
 

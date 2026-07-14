@@ -10,7 +10,6 @@ import { t } from './src/i18n.js';
 import { getSettings } from './src/state.js';
 import { initBridge, caps } from './src/st-bridge.js';
 import { mountSettingsPanel } from './src/settings-panel.js';
-import { injectEntryButton } from './src/inject.js';
 
 async function init() {
     try {
@@ -21,13 +20,6 @@ async function init() {
         if (!caps.promptManager) {
             console.error(LOG, 'prompt manager APIs are missing');
             globalThis.toastr?.warning(t('st_incompatible'));
-        }
-
-        injectEntryButton();
-        // The button lives in a static parent, but re-check after preset
-        // switches in case another extension rebuilt that part of the DOM.
-        if (event_types?.OAI_PRESET_CHANGED_AFTER) {
-            eventSource.on(event_types.OAI_PRESET_CHANGED_AFTER, () => injectEntryButton());
         }
 
         console.log(LOG, 'initialized');

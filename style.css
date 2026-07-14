@@ -908,18 +908,165 @@ dialog.popup.ps-dialog .popup-content {
     justify-content: flex-start;
 }
 
-/* ---------- Entry button ---------- */
-.ps-pm-toolbar {
+/* ---------- Variables tab ---------- */
+.ps-vars {
     display: flex;
-    margin-bottom: 5px;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
 }
 
-.ps-entry {
+.ps-vars-toolbar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ps-vars-toolbar .ps-vars-search {
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+.ps-vars-toolbar .ps-vars-scope {
+    width: auto;
+}
+
+.ps-vars-count {
+    white-space: nowrap;
+}
+
+.ps-vars-form {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+
+.ps-vars-form .ps-vars-form-name,
+.ps-vars-form .ps-vars-form-value {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
+.ps-vars-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ps-var-row {
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 6px;
+    padding: 4px 8px;
+    flex: 0 0 auto;
+}
+
+.ps-var-head {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+}
+
+.ps-var-name {
+    font-weight: 600;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.ps-var-preview {
+    flex: 1 1 auto;
+    min-width: 0;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-var-actions {
+    display: flex;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.ps-var-actions .ps-btn {
+    min-width: 34px;
+    justify-content: center;
+}
+
+.ps-var-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.ps-var-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.ps-var-chip {
+    font-size: 0.85em;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+}
+
+.ps-var-chip:hover {
+    background-color: var(--SmartThemeBlurTintColor);
+}
+
+/* Variable picker popup (from the prompt editor) */
+.ps-varpick {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+}
+
+.ps-varpick-top {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ps-varpick-top .ps-varpick-search {
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+.ps-varpick-top .ps-varpick-form {
     width: auto;
+}
+
+.ps-varpick-list {
+    max-height: 55dvh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ps-varpick-row {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
 }
 
 /* ---------- Settings drawer ---------- */
@@ -963,6 +1110,19 @@ dialog.popup.ps-dialog .popup-content {
     .ps-regex {
         flex-direction: column;
         overflow-y: auto;
+    }
+
+    .ps-var-head {
+        flex-wrap: wrap;
+    }
+
+    .ps-var-name {
+        max-width: 100%;
+    }
+
+    .ps-var-actions .ps-btn {
+        min-width: 40px;
+        min-height: 40px;
     }
 
     .ps-plist,

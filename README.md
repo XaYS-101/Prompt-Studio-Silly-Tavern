@@ -15,9 +15,7 @@ A SillyTavern extension for people who write, edit and test Chat Completion prom
 ## What it does
 
 ### The studio
-A fullscreen editor over the current Chat Completion preset. Open it from:
-- the ✨ button above the built-in Prompt Manager (AI Response Configuration panel),
-- the button in the extension's settings.
+A fullscreen editor over the current Chat Completion preset. Open it with the **Open Studio** button in the extension's settings (Extensions panel ➜ Prompt Studio).
 
 On the left — the prompt list in its real order: enable checkboxes, role badges, token counts, up/down reordering. On the right — the editor for the selected prompt with every field the native form has (name, role, position, depth, order, triggers, forbid overrides).
 
@@ -34,6 +32,9 @@ A snapshot of the prompt is taken automatically before each editing session, and
 
 ### Block library
 Reusable text fragments — standard instruction sections, disclaimers, style guides. Create a block from scratch or from selected text in the editor, then insert it at the cursor of any prompt in one click. Macros inside blocks work as usual.
+
+### Variables manager
+A dedicated tab for chat-local and global variables (the `{{getvar}}` / `{{setvar}}` family): create a variable with a name, value and scope, edit values inline (auto-saved), delete with confirmation, search and filter by scope — built to stay usable with 50+ variables (compact rows, one scrollable list, a live counter). Each variable expands into macro chips — `{{getvar}}`, `{{setvar}}`, `{{addvar}}`, `{{incvar}}`, `{{decvar}}` and the `{{.name}}` / `{{$name}}` shorthands — click to copy. In the prompt editor, a dedicated button opens a searchable picker that inserts the chosen macro form right at the cursor.
 
 ### Macro & variable reference
 A searchable, category-grouped catalogue of every macro your ST build actually registers (built from the live macro registry — extensions' custom macros show up too), with descriptions, arguments, aliases and examples. One click inserts the macro into the editor. Below it — your current chat-local and global variables with their values and ready-made `{{getvar::…}}` insertion.
