@@ -10,6 +10,7 @@ import { debounce, LOG } from './util.js';
 import { getSettings, save } from './state.js';
 import { isSelfWrite, currentPresetName, updatePresetFile, caps } from './st-bridge.js';
 import { renderPromptsTab } from './ui-prompts.js';
+import { renderCompareTab } from './ui-compare.js';
 import { renderRegexTab } from './ui-regex.js';
 import { renderBlocksTab } from './ui-library.js';
 import { renderVarsTab } from './ui-vars.js';
@@ -19,7 +20,7 @@ import { renderDryRunView } from './ui-preview.js';
 
 const toast = () => globalThis.toastr;
 
-const TABS = ['prompts', 'regex', 'blocks', 'vars', 'history', 'reference'];
+const TABS = ['prompts', 'compare', 'regex', 'blocks', 'vars', 'history', 'reference'];
 
 let current = null; // { root, body, dlg, tab, params, cleanups, insertTarget }
 let dirtyToPreset = false;
@@ -102,7 +103,8 @@ async function showTab(tab, params = {}) {
     current.body = body;
     const nav = makeNav();
     try {
-        if (tab === 'regex') await renderRegexTab(body, nav);
+        if (tab === 'compare') await renderCompareTab(body, nav);
+        else if (tab === 'regex') await renderRegexTab(body, nav);
         else if (tab === 'blocks') await renderBlocksTab(body, nav);
         else if (tab === 'vars') await renderVarsTab(body, nav);
         else if (tab === 'history') await renderHistoryTab(body, nav, params);

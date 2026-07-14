@@ -16,12 +16,14 @@ export const caps = {
     dryRun: false,          // CHAT_COMPLETION_PROMPT_READY event exists
     regex: false,           // regex extension engine
     presetFile: false,      // #update_oai_preset native button
+    presets: false,         // preset-manager.js (read/save other presets)
 };
 
 let openaiMod = null;
 let macroAcMod = null;
 let regexMod = null;
 let utilsMod = null;
+let presetMod = null;
 
 export async function initBridge() {
     const tryImport = async (path, label) => {
@@ -37,6 +39,7 @@ export async function initBridge() {
     macroAcMod = await tryImport('../../../../autocomplete/MacroAutoComplete.js', 'MacroAutoComplete.js');
     regexMod = await tryImport('../../../../extensions/regex/engine.js', 'regex/engine.js');
     utilsMod = await tryImport('../../../../utils.js', 'utils.js');
+    presetMod = await tryImport('../../../../preset-manager.js', 'preset-manager.js');
 
     const ctx = getContext();
     caps.promptManager = !!openaiMod?.oai_settings;
@@ -47,6 +50,7 @@ export async function initBridge() {
     caps.dryRun = !!event_types?.CHAT_COMPLETION_PROMPT_READY;
     caps.regex = typeof regexMod?.getScriptsByType === 'function' && typeof regexMod?.saveScriptsByType === 'function';
     caps.presetFile = !!document.getElementById('update_oai_preset');
+    caps.presets = typeof presetMod?.getPresetManager === 'function';
     console.debug(LOG, 'bridge capabilities', { ...caps });
 }
 
@@ -176,6 +180,22 @@ export async function movePrompt(identifier, dir) {
     return true;
 }
 
+/** Move a prompt to an absolute position in the active order (drag & drop). */
+export async function movePromptTo(identifier, targetIndex) {
+    const manager = pm();
+    const character = activeCharacter();
+    if (!manager || !character) return false;
+    const order = manager.getPromptOrderForCharacter(character) ?? [];
+    const index = order.findIndex(e => e.identifier === identifier);
+    if (index === -1) return false;
+    const target = Math.max(0, Math.min(order.length - 1, Number(targetIndex)));
+    if (target === index) return false;
+    const [entry] = order.splice(index, 1);
+    order.splice(target, 0, entry);
+    await persist();
+    return true;
+}
+
 export async function createPrompt({ name, role = 'system', content = '' }) {
     const manager = pm();
     const character = activeCharacter();
@@ -219,6 +239,65 @@ export async function deletePrompt(identifier) {
     if (index !== null && index !== -1) manager.serviceSettings.prompts.splice(Number(index), 1);
     await persist();
     return true;
+}
+
+// --- Other presets (compare tab) ----------------------------------------------
+// Chat Completion presets live in openai_settings (parsed objects) keyed by
+// openai_setting_names. savePreset(name, data, {skipUpdate:true}) writes the
+// file WITHOUT touching the preset <select>, so the active preset stays put.
+
+function ccPresetManager() {
+    try {
+        return presetMod?.getPresetManager?.('openai') ?? null;
+    } catch {
+        return null;
+    }
+}
+
+export function listPresetNames() {
+    try {
+        const names = ccPresetManager()?.getPresetList('openai')?.preset_names;
+        return names ? Object.keys(names) : [];
+    } catch (err) {
+        console.error(LOG, 'listPresetNames failed', err);
+        return [];
+    }
+}
+
+/** Deep clone of a preset object by name, or null. */
+export function readPresetByName(name) {
+    try {
+        const { presets, preset_names } = ccPresetManager()?.getPresetList('openai') ?? {};
+        const index = preset_names?.[name];
+        const preset = typeof index === 'number' ? presets?.[index] : undefined;
+        return preset ? structuredClone(preset) : null;
+    } catch (err) {
+        console.error(LOG, 'readPresetByName failed', err);
+        return null;
+    }
+}
+
+/**
+ * Save a NON-active preset's file and sync the in-memory copy (so a later
+ * switch to it loads what was just written). Refuses the active preset —
+ * that one is edited through the Prompt Manager.
+ */
+export async function savePresetByName(name, data) {
+    const manager = ccPresetManager();
+    if (!manager || !name || name === currentPresetName()) return false;
+    selfWriteDepth++;
+    try {
+        await manager.savePreset(name, data, { skipUpdate: true });
+        const { presets, preset_names } = manager.getPresetList('openai');
+        const index = preset_names?.[name];
+        if (typeof index === 'number' && index >= 0) presets[index] = structuredClone(data);
+        return true;
+    } catch (err) {
+        console.error(LOG, 'savePresetByName failed', err);
+        return false;
+    } finally {
+        setTimeout(() => { selfWriteDepth = Math.max(0, selfWriteDepth - 1); }, 500);
+    }
 }
 
 /**

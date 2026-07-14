@@ -44,6 +44,7 @@ export const I18N = {
 
         // Popup shell
         tab_prompts: 'Prompts',
+        tab_compare: 'Two presets',
         tab_regex: 'Regex',
         tab_blocks: 'Blocks',
         tab_vars: 'Variables',
@@ -126,8 +127,35 @@ export const I18N = {
         restore_done: 'Snapshot restored',
         confirm_delete_snapshot: 'Delete this snapshot? This cannot be undone.',
         diff_vs_current: 'diff vs current',
+        diff_same: 'No text changes.',
+        diff_fold: '${n} unchanged lines',
+        diff_fold_title: 'Click to show these lines',
+        diff_stat_title: 'Added / removed / changed lines',
+        diff_legend_snapshot: 'green — snapshot text (comes back on restore), red — current text (gets replaced)',
+        diff_legend_presets: 'green — second preset, red — active preset',
+        diff_meta_name: 'Name',
+        diff_meta_role: 'Role',
         snapshot_truncated_warn: 'This snapshot was truncated when stored (the prompt exceeded the size limit) — restoring it will restore the truncated text.',
         snap_prompt_gone: 'prompt no longer exists',
+
+        // Compare (two presets)
+        cmp_unavailable: 'The preset manager APIs are unavailable in this ST version.',
+        cmp_active: 'Active: ${name}',
+        cmp_no_others: 'No other Chat Completion presets found.',
+        cmp_search: 'Search prompts…',
+        cmp_note: 'Left — the active preset (live edits, same as the Prompts tab). Right — any other preset, written straight into its file. Click a prompt to edit both side by side.',
+        cmp_saved: '✓ saved to the preset file',
+        cmp_status_same: 'same',
+        cmp_status_diff: 'differs',
+        cmp_status_only_a: 'only in active',
+        cmp_status_only_b: 'only in second',
+        cmp_a_missing: 'This prompt does not exist in the active preset.',
+        cmp_b_missing: 'This prompt does not exist in the second preset.',
+        cmp_copy_ab: 'Active → second',
+        cmp_copy_ab_title: 'Replace the second preset\'s text with the active one',
+        cmp_copy_ba: 'Second → active',
+        cmp_copy_ba_title: 'Replace the active preset\'s text with the second one',
+        cmp_show_diff: 'Show differences',
 
         // Blocks
         blocks_empty: 'No blocks yet. Blocks are reusable text fragments you can insert into any prompt.',
@@ -219,6 +247,12 @@ export const I18N = {
         vars_dec_title: 'Decrease the value by 1',
         vars_help_title: 'How variable macros work',
         vars_help_body: 'Variables are name → value pairs. Chat variables live inside the current chat, global ones are shared by all chats.\nMacros run when the prompt is being built — anywhere ST substitutes macros: prompts, character card, World Info, Author\'s Note.\n{{setvar::name::value}} — writes a chat variable, outputs no text. Global: {{setglobalvar::name::value}}.\n{{getvar::name}} — replaced with the value. Global: {{getglobalvar::name}}. Shorthands: {{.name}} (chat) / {{$name}} (global).\n{{addvar::name::2}} — adds a number (negative subtracts), outputs no text. {{incvar::name}} / {{decvar::name}} — ±1 and output the new value.\nMacros can be nested: {{setvar::hp::{{roll:1d20}}}} stores a dice roll into hp.\nPut writes ({{setvar}}) earlier in the prompt than reads ({{getvar}}) so the read sees the new value.',
+        varpick_insert_all: 'Insert all',
+        varpick_insert_all_title: 'Insert every listed variable at the cursor as "name: {{getvar::name}}" lines',
+        varpick_used: 'in prompt',
+        varpick_used_title: 'This variable is referenced in the prompt text',
+        varpick_missing_title: 'Referenced in this prompt but not created yet:',
+        varpick_create_missing: 'Create this variable (with an empty value)',
         ed_insert_var: 'Insert a variable macro at the cursor',
 
         // Regex tab
@@ -317,6 +351,7 @@ export const I18N = {
 
         // Popup shell
         tab_prompts: 'Промпты',
+        tab_compare: 'Два пресета',
         tab_regex: 'Regex',
         tab_blocks: 'Блоки',
         tab_vars: 'Переменные',
@@ -399,8 +434,35 @@ export const I18N = {
         restore_done: 'Снапшот восстановлен',
         confirm_delete_snapshot: 'Удалить этот снапшот? Отменить будет нельзя.',
         diff_vs_current: 'diff с текущим',
+        diff_same: 'Текст не отличается.',
+        diff_fold: 'строк без изменений: ${n}',
+        diff_fold_title: 'Нажмите, чтобы показать эти строки',
+        diff_stat_title: 'Добавлено / удалено / изменено строк',
+        diff_legend_snapshot: 'зелёное — текст снапшота (вернётся при восстановлении), красное — текущий текст (будет заменён)',
+        diff_legend_presets: 'зелёное — второй пресет, красное — активный пресет',
+        diff_meta_name: 'Название',
+        diff_meta_role: 'Роль',
         snapshot_truncated_warn: 'Этот снапшот был обрезан при сохранении (промпт превысил лимит размера) — восстановится обрезанный текст.',
         snap_prompt_gone: 'промпт больше не существует',
+
+        // Compare (two presets)
+        cmp_unavailable: 'API менеджера пресетов недоступны в этой версии ST.',
+        cmp_active: 'Активный: ${name}',
+        cmp_no_others: 'Других пресетов Chat Completion не найдено.',
+        cmp_search: 'Поиск промптов…',
+        cmp_note: 'Слева — активный пресет (правки применяются как во вкладке «Промпты»). Справа — любой другой пресет, правки пишутся прямо в его файл. Кликните по промпту, чтобы редактировать оба бок о бок.',
+        cmp_saved: '✓ сохранено в файл пресета',
+        cmp_status_same: 'одинаково',
+        cmp_status_diff: 'отличается',
+        cmp_status_only_a: 'только в активном',
+        cmp_status_only_b: 'только во втором',
+        cmp_a_missing: 'Этого промпта нет в активном пресете.',
+        cmp_b_missing: 'Этого промпта нет во втором пресете.',
+        cmp_copy_ab: 'Активный → второй',
+        cmp_copy_ab_title: 'Заменить текст во втором пресете текстом активного',
+        cmp_copy_ba: 'Второй → активный',
+        cmp_copy_ba_title: 'Заменить текст в активном пресете текстом второго',
+        cmp_show_diff: 'Показать отличия',
 
         // Blocks
         blocks_empty: 'Блоков пока нет. Блоки — это переиспользуемые фрагменты текста, вставляемые в любой промпт.',
@@ -492,6 +554,12 @@ export const I18N = {
         vars_dec_title: 'Уменьшить значение на 1',
         vars_help_title: 'Как работают макросы переменных',
         vars_help_body: 'Переменные — это пары «имя → значение». Чатовые живут внутри текущего чата, глобальные — общие для всех чатов.\nМакросы срабатывают в момент сборки промпта — везде, где ST подставляет макросы: промпты, карточка персонажа, World Info, Author\'s Note.\n{{setvar::имя::значение}} — записывает чатовую переменную, текст не выводит. Глобальная: {{setglobalvar::имя::значение}}.\n{{getvar::имя}} — заменяется на значение. Глобальная: {{getglobalvar::имя}}. Шорткаты: {{.имя}} (чат) / {{$имя}} (глобальная).\n{{addvar::имя::2}} — прибавляет число (отрицательное — вычитает), текст не выводит. {{incvar::имя}} / {{decvar::имя}} — ±1 и выводят новое значение.\nМакросы можно вкладывать: {{setvar::hp::{{roll:1d20}}}} запишет в hp результат броска кубика.\nСтавьте запись ({{setvar}}) в промпте раньше чтения ({{getvar}}) — тогда чтение увидит новое значение.',
+        varpick_insert_all: 'Вставить все',
+        varpick_insert_all_title: 'Вставить все переменные из списка строками «имя: {{getvar::имя}}» в позицию курсора',
+        varpick_used: 'в промпте',
+        varpick_used_title: 'Эта переменная упоминается в тексте промпта',
+        varpick_missing_title: 'Упоминаются в промпте, но ещё не созданы:',
+        varpick_create_missing: 'Создать эту переменную (с пустым значением)',
         ed_insert_var: 'Вставить макрос переменной в позицию курсора',
 
         // Regex tab

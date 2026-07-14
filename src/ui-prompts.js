@@ -6,7 +6,7 @@ import { t, localize } from './i18n.js';
 import { LOG, escapeHtml, hashContent } from './util.js';
 import {
     pmReady, isCC, listOrderedPrompts, listUnusedPrompts, activeCharacter,
-    setPromptEnabled, movePrompt, createPrompt, attachPrompt, perms,
+    setPromptEnabled, movePrompt, movePromptTo, createPrompt, attachPrompt, perms,
     oaiSettings, countTokens, caps,
 } from './st-bridge.js';
 import { renderEditor } from './ui-editor.js';
@@ -140,6 +140,12 @@ function roleShort(role) {
     return 'S';
 }
 
+function clearDropMarks(items) {
+    for (const el of items.querySelectorAll('.ps-drop-above, .ps-drop-below')) {
+        el.classList.remove('ps-drop-above', 'ps-drop-below');
+    }
+}
+
 function renderList(items, nav, { orderLocked, openEditor }) {
     items.textContent = '';
     const entries = orderLocked
@@ -151,6 +157,10 @@ function renderList(items, nav, { orderLocked, openEditor }) {
         localize(items);
         return;
     }
+
+    // Drag & drop reorder — desktop pointers only; touch keeps the arrows.
+    const dndEnabled = !orderLocked && !!window.matchMedia?.('(pointer: fine)')?.matches;
+    let dragged = null;
 
     for (const { prompt, enabled } of entries) {
         const row = document.createElement('div');
@@ -195,13 +205,60 @@ function renderList(items, nav, { orderLocked, openEditor }) {
             }
         });
 
+        if (dndEnabled) {
+            row.draggable = true;
+            row.addEventListener('dragstart', (event) => {
+                dragged = row;
+                row.classList.add('ps-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', prompt.identifier);
+            });
+            row.addEventListener('dragend', () => {
+                row.classList.remove('ps-dragging');
+                clearDropMarks(items);
+                dragged = null;
+            });
+        }
+
         items.appendChild(row);
+    }
+
+    if (dndEnabled) {
+        items.addEventListener('dragover', (event) => {
+            if (!dragged) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            clearDropMarks(items);
+            const row = event.target.closest?.('.ps-prow');
+            if (!row || row === dragged) return;
+            const rect = row.getBoundingClientRect();
+            row.classList.add(event.clientY < rect.top + rect.height / 2 ? 'ps-drop-above' : 'ps-drop-below');
+        });
+        items.addEventListener('drop', async (event) => {
+            if (!dragged) return;
+            event.preventDefault();
+            const src = dragged;
+            const row = event.target.closest?.('.ps-prow');
+            clearDropMarks(items);
+            if (!row || row === src) return;
+            const rect = row.getBoundingClientRect();
+            const before = event.clientY < rect.top + rect.height / 2;
+            const oldIndex = [...items.querySelectorAll('.ps-prow')].indexOf(src);
+            items.insertBefore(src, before ? row : row.nextSibling);
+            const newIndex = [...items.querySelectorAll('.ps-prow')].indexOf(src);
+            if (newIndex === oldIndex) return;
+            if (await movePromptTo(src.dataset.identifier, newIndex)) {
+                nav.markDirty();
+            } else {
+                nav.rerender?.(); // resync the list with the real order
+            }
+        });
     }
 
     refreshListMeta(items);
 }
 
-/** Refresh names and async token counts in place (no rebuild). */
+/** Refresh names, role badges and async token counts in place (no rebuild). */
 async function refreshListMeta(items) {
     if (!items?.isConnected) return;
     const prompts = new Map((oaiSettings()?.prompts ?? []).filter(Boolean).map(p => [p.identifier, p]));
@@ -211,6 +268,9 @@ async function refreshListMeta(items) {
         const nameEl = row.querySelector('.ps-prow-name');
         const name = prompt.name || prompt.identifier;
         if (nameEl.textContent !== name) nameEl.textContent = name;
+        const roleEl = row.querySelector('.ps-prow-main .ps-badge:not(.ps-badge-marker)');
+        const short = roleShort(prompt.role);
+        if (roleEl && roleEl.textContent !== short) roleEl.textContent = short;
     }
     if (!caps.tokens) return;
     for (const row of items.querySelectorAll('.ps-prow')) {

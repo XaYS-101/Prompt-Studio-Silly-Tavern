@@ -12,7 +12,7 @@ export const DEFAULTS = {
     schemaVersion: 1,
     language: 'ru',
     ui: {
-        lastTab: 'prompts',   // prompts | regex | blocks | history | reference
+        lastTab: 'prompts',   // prompts | compare | regex | blocks | vars | history | reference
         autocomplete: true,
         highlight: true,
         livePreview: true,

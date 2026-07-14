@@ -1,33 +1,19 @@
 // History tab: snapshots of the current preset, filterable by prompt, with a
-// word-level diff against the live content, restore and delete.
+// line/word-level diff against the live content (line numbers, folded
+// unchanged runs, +/−/~ summary), restore and delete.
 
 import { callGenericPopup, POPUP_TYPE, POPUP_RESULT } from '../../../../popup.js';
 import { t, localize } from './i18n.js';
 import { LOG, escapeHtml } from './util.js';
 import { getSettings, listSnapshots, listSnapshotPrompts, deleteSnapshot, addSnapshot } from './state.js';
 import { currentPresetName, getPromptById, applyPromptPatch, perms } from './st-bridge.js';
-import { diffLines } from './diff.js';
+import { renderDiff } from './ui-diff.js';
 
 const toast = () => globalThis.toastr;
 
-function diffHtml(oldText, newText) {
-    const ops = diffLines(oldText, newText);
-    let html = '';
-    for (const op of ops) {
-        if (op.type === 'same') html += `<div class="ps-diff-line">${escapeHtml(op.text) || '&nbsp;'}</div>`;
-        else if (op.type === 'del') html += `<div class="ps-diff-line ps-diff-del">${escapeHtml(op.text) || '&nbsp;'}</div>`;
-        else if (op.type === 'add') html += `<div class="ps-diff-line ps-diff-add">${escapeHtml(op.text) || '&nbsp;'}</div>`;
-        else {
-            let line = '';
-            for (const word of op.words) {
-                if (word.type === 'same') line += escapeHtml(word.text);
-                else if (word.type === 'del') line += `<span class="ps-diff-del">${escapeHtml(word.text)}</span>`;
-                else line += `<span class="ps-diff-add">${escapeHtml(word.text)}</span>`;
-            }
-            html += `<div class="ps-diff-line">${line || '&nbsp;'}</div>`;
-        }
-    }
-    return html;
+function roleLabel(role) {
+    const known = ['system', 'user', 'assistant'];
+    return t(`role_${known.includes(role) ? role : 'system'}`);
 }
 
 export async function renderHistoryTab(body, nav, params = {}) {
@@ -99,8 +85,25 @@ export async function renderHistoryTab(body, nav, params = {}) {
                 }
                 const live = getPromptById(identifier);
                 try {
-                    // del = lines only in the current text, add = lines the snapshot would bring back
-                    bodyEl.innerHTML = `<div class="ps-diff">${diffHtml(String(live?.content ?? ''), entry.content)}</div>`;
+                    bodyEl.textContent = '';
+                    // Name/role changes are invisible in a content diff — list them.
+                    const metaBits = [];
+                    if (String(live?.name ?? '') !== String(entry.name ?? '')) {
+                        metaBits.push(`${t('diff_meta_name')}: «${live?.name ?? '—'}» → «${entry.name || '—'}»`);
+                    }
+                    if (String(live?.role ?? '') !== String(entry.role ?? '')) {
+                        metaBits.push(`${t('diff_meta_role')}: ${roleLabel(live?.role)} → ${roleLabel(entry.role)}`);
+                    }
+                    if (metaBits.length) {
+                        const meta = document.createElement('div');
+                        meta.className = 'ps-diff-meta';
+                        meta.textContent = metaBits.join(' · ');
+                        bodyEl.appendChild(meta);
+                    }
+                    const diffHost = document.createElement('div');
+                    bodyEl.appendChild(diffHost);
+                    // old = current text, new = the snapshot (what restore brings back)
+                    renderDiff(diffHost, String(live?.content ?? ''), entry.content, { legendKey: 'diff_legend_snapshot' });
                 } catch (err) {
                     console.error(LOG, 'diff failed', err);
                     bodyEl.textContent = t('toast_error');

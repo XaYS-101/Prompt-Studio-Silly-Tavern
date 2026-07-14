@@ -318,13 +318,35 @@ export async function renderVarsTab(body, nav) {
     renderList();
 }
 
+// Variable references in prompt text: {{getvar::x}} family + {{.x}}/{{$x}}.
+const USED_VAR_RE = /{{\s*(get|set|add|inc|dec)(global)?var::([^:}]+)/gi;
+const USED_SHORT_RE = /{{([.$])([a-zA-Z](?:[\w-]*\w)?)}}/g;
+
+function collectUsedVars(text) {
+    const used = new Map(); // `${scope}:${name}` -> { scope, name }
+    const source = String(text ?? '');
+    for (const match of source.matchAll(USED_VAR_RE)) {
+        const scope = match[2] ? 'global' : 'chat';
+        const name = match[3].trim();
+        if (isValidName(name)) used.set(`${scope}:${name}`, { scope, name });
+    }
+    for (const match of source.matchAll(USED_SHORT_RE)) {
+        const scope = match[1] === '$' ? 'global' : 'chat';
+        used.set(`${scope}:${match[2]}`, { scope, name: match[2] });
+    }
+    return used;
+}
+
 /**
  * Compact searchable picker used by the prompt editor: pick a macro form and
  * a variable, and the macro is inserted at the editor textarea's cursor.
+ * Also: create variables in place, see which ones the prompt already uses
+ * (and create the missing ones), and dump all variables as getvar lines.
  * @param {HTMLTextAreaElement} textarea
  */
 export async function openVariablePicker(textarea) {
-    const rows = listAll();
+    const used = collectUsedVars(textarea?.value);
+    let rows = listAll();
     const content = document.createElement('div');
     content.className = 'ps-varpick';
     content.innerHTML = `
@@ -333,19 +355,32 @@ export async function openVariablePicker(textarea) {
                 ${FORMS.map(form => `<option value="${form}" data-ps-i18n="vars_f_${form}"></option>`).join('')}
             </select>
             <input type="search" class="text_pole ps-varpick-search" data-ps-i18n="[placeholder]vars_search">
+            <div class="menu_button ps-btn ps-varpick-newbtn" data-ps-i18n="[title]vars_new"><i class="fa-solid fa-plus"></i></div>
+            <div class="menu_button ps-btn ps-varpick-all" data-ps-i18n="[title]varpick_insert_all_title"><i class="fa-solid fa-layer-group"></i> <span data-ps-i18n="varpick_insert_all"></span></div>
         </div>
+        <div class="ps-varpick-create" style="display:none"></div>
+        <div class="ps-varpick-missing"></div>
         <div class="ps-varpick-list"></div>
     `;
     localize(content);
     const list = content.querySelector('.ps-varpick-list');
+    const missingHost = content.querySelector('.ps-varpick-missing');
+    const createHost = content.querySelector('.ps-varpick-create');
     const formEl = content.querySelector('.ps-varpick-form');
     const searchEl = content.querySelector('.ps-varpick-search');
     let popup = null;
 
-    const renderRows = () => {
+    const isUsed = (row) => used.has(`${row.scope}:${row.name}`);
+    const visibleRows = () => {
         const query = searchEl.value.trim().toLowerCase();
+        return rows
+            .filter(r => matches(r, query))
+            .sort((a, b) => (isUsed(b) - isUsed(a)) || a.name.localeCompare(b.name) || a.scope.localeCompare(b.scope));
+    };
+
+    const renderRows = () => {
         list.textContent = '';
-        for (const row of rows.filter(r => matches(r, query))) {
+        for (const row of visibleRows()) {
             const macro = buildVarMacro(formEl.value, row.scope, row.name);
             if (!macro) continue; // shorthand form with an incompatible name
             const el = document.createElement('div');
@@ -353,6 +388,7 @@ export async function openVariablePicker(textarea) {
             el.innerHTML = `
                 <span class="ps-badge ps-var-badge" data-ps-i18n="vars_badge_${row.scope}"></span>
                 <code class="ps-var-name">${escapeHtml(row.name)}</code>
+                ${isUsed(row) ? `<span class="ps-var-used" data-ps-i18n="varpick_used;[title]varpick_used_title"></span>` : ''}
                 <span class="ps-var-preview">${escapeHtml(valueText(row.value))}</span>
             `;
             localize(el);
@@ -368,8 +404,110 @@ export async function openVariablePicker(textarea) {
             localize(list);
         }
     };
+
+    // Variables the prompt references that do not exist yet — offer to create.
+    const renderMissing = () => {
+        missingHost.textContent = '';
+        const existing = new Set(rows.map(r => `${r.scope}:${r.name}`));
+        const missing = [...used.values()].filter(u => !existing.has(`${u.scope}:${u.name}`));
+        if (!missing.length) return;
+        missingHost.innerHTML = `<div class="ps-varpick-missing-title" data-ps-i18n="varpick_missing_title"></div>`;
+        localize(missingHost);
+        for (const item of missing) {
+            const el = document.createElement('div');
+            el.className = 'ps-prow ps-varpick-row ps-varpick-missing-row';
+            el.innerHTML = `
+                <span class="ps-badge ps-var-badge" data-ps-i18n="vars_badge_${item.scope}"></span>
+                <code class="ps-var-name">${escapeHtml(item.name)}</code>
+                <div class="menu_button ps-btn ps-varpick-createbtn" data-ps-i18n="[title]varpick_create_missing"><i class="fa-solid fa-plus"></i> <span data-ps-i18n="vars_create"></span></div>
+            `;
+            localize(el);
+            el.querySelector('.ps-varpick-createbtn').addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (item.scope === 'chat' && !hasOpenChat()) {
+                    toast()?.warning(t('vars_no_chat'));
+                    return;
+                }
+                if (!setVariable(item.scope === 'global' ? 'global' : 'local', item.name, '')) {
+                    toast()?.error(t('toast_error'));
+                    return;
+                }
+                toast()?.success(t('vars_created'));
+                refresh();
+            });
+            missingHost.appendChild(el);
+        }
+    };
+
+    const refresh = () => {
+        rows = listAll();
+        renderMissing();
+        renderRows();
+    };
+
     formEl.addEventListener('change', renderRows);
     searchEl.addEventListener('input', debounce(renderRows, 200));
+
+    // Insert every listed variable as "name: {{getvar::name}}" lines.
+    content.querySelector('.ps-varpick-all').addEventListener('click', () => {
+        const visible = visibleRows();
+        if (!visible.length) {
+            toast()?.warning(t('vars_empty'));
+            return;
+        }
+        const lines = visible.map(r => `${r.name}: ${buildVarMacro('get', r.scope, r.name)}`);
+        insertAtCursor(textarea, lines.join('\n') + '\n');
+        toast()?.success(t('block_inserted'));
+        popup?.completeCancelled?.();
+    });
+
+    // Inline create form.
+    content.querySelector('.ps-varpick-newbtn').addEventListener('click', () => {
+        const show = createHost.style.display === 'none';
+        createHost.style.display = show ? '' : 'none';
+        if (!show) {
+            createHost.textContent = '';
+            return;
+        }
+        createHost.innerHTML = `
+            <input type="text" class="text_pole ps-varpick-cname ps-mono" data-ps-i18n="[placeholder]vars_name">
+            <input type="text" class="text_pole ps-varpick-cvalue ps-mono" data-ps-i18n="[placeholder]vars_value">
+            <select class="text_pole ps-varpick-cscope">
+                <option value="chat" data-ps-i18n="vars_scope_chat"></option>
+                <option value="global" data-ps-i18n="vars_scope_global"></option>
+            </select>
+            <div class="menu_button ps-btn ps-varpick-csubmit"><i class="fa-solid fa-check"></i> <span data-ps-i18n="vars_create"></span></div>
+        `;
+        localize(createHost);
+        const scopeSel = createHost.querySelector('.ps-varpick-cscope');
+        if (!hasOpenChat()) {
+            scopeSel.value = 'global';
+            scopeSel.querySelector('option[value="chat"]').disabled = true;
+        }
+        const submit = () => {
+            const name = createHost.querySelector('.ps-varpick-cname').value.trim();
+            if (!isValidName(name)) {
+                toast()?.warning(t('vars_name_required'));
+                return;
+            }
+            const value = createHost.querySelector('.ps-varpick-cvalue').value;
+            if (!setVariable(scopeSel.value === 'global' ? 'global' : 'local', name, value)) {
+                toast()?.error(t('toast_error'));
+                return;
+            }
+            toast()?.success(t('vars_created'));
+            createHost.style.display = 'none';
+            createHost.textContent = '';
+            refresh();
+        };
+        createHost.querySelector('.ps-varpick-csubmit').addEventListener('click', submit);
+        for (const inputEl of createHost.querySelectorAll('input')) {
+            inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+        }
+        createHost.querySelector('.ps-varpick-cname').focus();
+    });
+
+    renderMissing();
     renderRows();
 
     try {
